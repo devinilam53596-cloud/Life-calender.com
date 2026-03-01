@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Consistency 2026-2039</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --bg: #000000;
+            --past: #0a0a0a;      /* Solid Black */
+            --present: #00ffff;   /* Cyan Blue */
+            --future-bg: #111111; /* Light Black */
+            --future-border: #333; /* Light White/Grey */
+            --text: #ffffff;
+        }
+
+        body, html { 
+            margin: 0; 
+            padding: 0;
+            background: var(--bg); 
+            color: var(--text); 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            height: 100%;
+            overflow: hidden; 
+        }
+
+        /* Side Navigation */
+        .menu-btn { position: fixed; top: 15px; left: 15px; z-index: 1001; cursor: pointer; background: #1a1a1a; padding: 10px; border-radius: 8px; border: 1px solid var(--present); color: var(--present); font-size: 18px; }
+        .sidebar { position: fixed; left: -260px; top: 0; width: 250px; height: 100%; background: #050505; transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); z-index: 1000; border-right: 1px solid #222; overflow-y: auto; }
+        .sidebar.active { left: 0; }
+        .year-link { padding: 15px 25px; cursor: pointer; border-bottom: 1px solid #111; font-size: 15px; color: #888; transition: 0.3s; }
+        .year-link:hover, .year-link.active-year { background: #111; color: var(--present); border-left: 4px solid var(--present); }
+
+        /* Main Display */
+        .app-container { 
+            width: 100%; 
+            height: 100vh; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between;
+            padding: 20px; 
+            box-sizing: border-box; 
+        }
+
+        .header { text-align: center; height: 12%; }
+        .header h1 { margin: 0; font-size: 1.6rem; letter-spacing: 4px; color: var(--present); text-transform: uppercase; }
+        .stats-bar { font-size: 11px; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Calendar Grid at 75% Height */
+        .calendar-wrapper {
+            width: 100%;
+            height: 75%; 
+            display: grid;
+            grid-template-columns: repeat(15, 1fr); 
+            gap: 3px;
+            padding: 10px;
+            background: #080808;
+            border: 1px solid #1a1a1a;
+            border-radius: 12px;
+            overflow-y: auto;
+            box-sizing: border-box;
+        }
+
+        .day-box {
+            aspect-ratio: 1;
+            background: var(--future-bg);
+            border: 1px solid var(--future-border);
+            border-radius: 2px;
+            font-size: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #444;
+        }
+
+        .day-box.past { background: var(--past); border-color: #000; color: #222; }
+        .day-box.today { 
+            background: var(--present); 
+            border-color: #fff; 
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5); 
+            color: #000; 
+            font-weight: 900;
+            z-index: 10;
+        }
+        
+        /* Bottom Controls */
+        .footer { height: 10%; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+        .save-btn { background: var(--present); color: #000; border: none; padding: 12px 30px; border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 80%; max-width: 300px; }
+        .save-btn:active { transform: scale(0.95); opacity: 0.8; }
+        
+        #countdown-text { font-size: 10px; color: #444; margin-top: 8px; font-weight: bold; }
+
+        /* Scrollbar Fix */
+        .calendar-wrapper::-webkit-scrollbar { width: 4px; }
+        .calendar-wrapper::-webkit-scrollbar-thumb { background: #222; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="menu-btn" onclick="toggleSidebar()">☰</div>
+
+    <div class="sidebar" id="sidebar">
+        <div style="padding: 25px; font-weight: bold; color: var(--present); font-size: 20px;">CALENDAR</div>
+        <div id="year-list"></div>
+    </div>
+
+    <div class="app-container" id="capture-area">
+        <div class="header">
+            <h1 id="year-title">2026</h1>
+            <div id="stats" class="stats-bar">Loading Progress...</div>
+        </div>
+
+        <div class="calendar-wrapper" id="grid"></div>
+
+        <div class="footer">
+            <button class="save-btn" onclick="downloadImage()">SAVE AS WALLPAPER</button>
+            <div id="countdown-text"></div>
+        </div>
+    </div>
+
+    <script>
+        let viewYear = new Date().getFullYear();
+        const startYear = 2026;
+        const endYear = 2039;
+        const targetDate = new Date(2039, 11, 31);
+
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('active'); }
+
+        function generateYearList() {
+            const list = document.getElementById('year-list');
+            for(let y = startYear; y <= endYear; y++) {
+                const div = document.createElement('div');
+                div.className = `year-link ${y === viewYear ? 'active-year' : ''}`;
+                div.innerText = `Year ${y}`;
+                div.onclick = () => { 
+                    viewYear = y; 
+                    updateYearUI();
+                    renderCalendar(); 
+                    toggleSidebar(); 
+                };
+                list.appendChild(div);
+            }
+        }
+
+        function updateYearUI() {
+            document.querySelectorAll('.year-link').forEach(el => {
+                el.classList.toggle('active-year', el.innerText.includes(viewYear));
+            });
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('grid');
+            const stats = document.getElementById('stats');
+            const countdown = document.getElementById('countdown-text');
+            grid.innerHTML = '';
+            
+            document.getElementById('year-title').innerText = viewYear;
+
+            const now = new Date();
+            const isLeap = (viewYear % 4 === 0 && viewYear % 100 !== 0) || (viewYear % 400 === 0);
+            const totalDays = isLeap ? 366 : 365;
+
+            // Day calculation logic
+            let dayOfToday = -1;
+            if (now.getFullYear() === viewYear) {
+                const start = new Date(viewYear, 0, 0);
+                const diff = now - start;
+                dayOfToday = Math.floor(diff / (1000 * 60 * 60 * 24));
+            } else if (now.getFullYear() > viewYear) {
+                dayOfToday = 400; // Force all past
+            }
+
+            for (let i = 1; i <= totalDays; i++) {
+                const box = document.createElement('div');
+                box.className = 'day-box';
+                box.innerText = i;
+
+                if (i < dayOfToday) {
+                    box.classList.add('past');
+                } else if (i === dayOfToday) {
+                    box.classList.add('today');
+                }
+                grid.appendChild(box);
+            }
+
+            // Stats Logic
+            const passed = dayOfToday > totalDays ? totalDays : (dayOfToday < 1 ? 0 : dayOfToday);
+            const perc = ((passed / totalDays) * 100).toFixed(1);
+            stats.innerText = `${passed} DAYS FAST | ${totalDays - passed} DAYS REMAIN | ${perc}% DONE`;
+
+            // Global Countdown to 2039
+            const diffGoal = targetDate - now;
+            const daysLeftTotal = Math.ceil(diffGoal / (1000 * 60 * 60 * 24));
+            countdown.innerText = `TOTAL DAYS UNTIL END OF 2039: ${daysLeftTotal.toLocaleString()}`;
+        }
+
+        function downloadImage() {
+            const btn = document.querySelector('.save-btn');
+            const menu = document.querySelector('.menu-btn');
+            btn.style.opacity = '0'; 
+            menu.style.opacity = '0';
+            
+            html2canvas(document.getElementById('capture-area'), {
+                backgroundColor: '#000',
+                scale: 3,
+                logging: false,
+                useCORS: true
+            }).then(canvas => {
+                const imageData = canvas.toDataURL("image/png");
+                const link = document.createElement('a');
+                link.download = `Consistency_${viewYear}_Live.png`;
+                link.href = imageData;
+                link.click();
+                
+                btn.style.opacity = '1';
+                menu.style.opacity = '1';
+            });
+        }
+
+        generateYearList();
+        renderCalendar();
+    </script>
+</body>
+</html>
